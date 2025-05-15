@@ -139,7 +139,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-      <div className="relative bg-white rounded-lg shadow-lg max-w-lg w-full animate-slide-up">
+      <div className="relative bg-white rounded-lg shadow-lg max-w-lg w-full">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-slate-900">Upload Document</h2>

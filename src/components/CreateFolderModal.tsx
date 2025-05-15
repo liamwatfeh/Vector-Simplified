@@ -140,24 +140,22 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
     setError(null);
     
     try {
-      const metadataParams = metadataFields
-        .filter(field => field.key.trim())
-        .map(field => field.key.trim());
-      
+      const metadataConfig = metadataFields.reduce((acc, field) => ({
+        ...acc,
+        [field.key]: {
+          type: field.type,
+          options: field.type === 'select' ? field.options : undefined,
+          required: field.required
+        }
+      }), {});
+
       const newFolder = await createFolder(user.apiKey, {
         name: data.name,
         projectId,
         chunkSize: data.chunkSize,
         chunkOverlap: data.chunkOverlap,
-        metadataParams,
-        metadataConfig: metadataFields.reduce((acc, field) => ({
-          ...acc,
-          [field.key]: {
-            type: field.type,
-            options: field.type === 'select' ? field.options : undefined,
-            required: field.required
-          }
-        }), {})
+        metadataParams: metadataFields.map(field => field.key),
+        metadataConfig
       });
       
       onFolderCreated(newFolder);
@@ -171,7 +169,7 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-      <div className="relative bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slide-up">
+      <div className="relative bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-slate-900">Create New Folder</h2>
