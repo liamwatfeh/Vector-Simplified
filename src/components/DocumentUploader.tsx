@@ -1,15 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { X, UploadCloud, File, Loader2, CheckCircle } from 'lucide-react';
-import { uploadDocument } from '../services/pineconeService';
+import { X, UploadCloud, File, Loader2, CheckCircle, Info } from 'lucide-react';
+import { uploadDocument, getFolder } from '../services/pineconeService';
 import { useAuth } from '../contexts/AuthContext';
-import { Document } from '../types';
+import { Document, Folder } from '../types';
 
 interface DocumentUploaderProps {
   projectId: string;
   folderId: string;
   onClose: () => void;
   onUploadComplete: (document: Document) => void;
+}
+
+interface MetadataValues {
+  [key: string]: string;
 }
 
 const DocumentUploader: React.FC<DocumentUploaderProps> = ({ 
@@ -23,18 +27,41 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [folder, setFolder] = useState<Folder | null>(null);
+  const [metadataValues, setMetadataValues] = useState<MetadataValues>({});
+
+  // Fetch folder details to get metadata configuration
+  useEffect(() => {
+    const fetchFolder = async () => {
+      if (!user?.apiKey) return;
+      try {
+        const folderData = await getFolder(user.apiKey, projectId, folderId);
+        setFolder(folderData);
+        
+        // Initialize metadata values with empty strings
+        const initialValues: MetadataValues = {};
+        folderData.metadataParams.forEach(param => {
+          initialValues[param] = '';
+        });
+        setMetadataValues(initialValues);
+      } catch (error) {
+        console.error('Failed to fetch folder:', error);
+        setError('Failed to load folder configuration');
+      }
+    };
+    
+    fetchFolder();
+  }, [user, projectId, folderId]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
       
-      // Check if file is a PDF
       if (file.type !== 'application/pdf') {
         setError('Only PDF files are supported.');
         return;
       }
       
-      // Check file size (max 20MB)
       if (file.size > 20 * 1024 * 1024) {
         setError('File size exceeds the 20MB limit.');
         return;
@@ -55,7 +82,14 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   });
 
   const handleUpload = async () => {
-    if (!user?.apiKey || !selectedFile) return;
+    if (!user?.apiKey || !selectedFile || !folder) return;
+    
+    // Validate required metadata fields
+    const missingFields = folder.metadataParams.filter(param => !metadataValues[param]);
+    if (missingFields.length > 0) {
+      setError(`Please fill in all required metadata fields: ${missingFields.join(', ')}`);
+      return;
+    }
     
     setUploading(true);
     setUploadProgress(0);
@@ -72,7 +106,8 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       const newDocument = await uploadDocument(user.apiKey, {
         file: selectedFile,
         projectId,
-        folderId
+        folderId,
+        metadata: metadataValues
       });
       
       clearInterval(progressInterval);
@@ -88,6 +123,13 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
       setError('Failed to upload document. Please try again.');
       setUploading(false);
     }
+  };
+
+  const handleMetadataChange = (param: string, value: string) => {
+    setMetadataValues(prev => ({
+      ...prev,
+      [param]: value
+    }));
   };
 
   return (
@@ -173,6 +215,26 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                   </div>
                 )}
               </div>
+              
+              {folder && folder.metadataParams.length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-slate-900">Document Metadata</h3>
+                  {folder.metadataParams.map(param => (
+                    <div key={param} className="space-y-2">
+                      <label className="block text-sm font-medium text-slate-700">
+                        {param}
+                      </label>
+                      <input
+                        type="text"
+                        value={metadataValues[param] || ''}
+                        onChange={(e) => handleMetadataChange(param, e.target.value)}
+                        className="input w-full"
+                        placeholder={`Enter ${param.toLowerCase()}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
               
               <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 text-sm">
                 <h4 className="font-medium text-slate-900 mb-2 flex items-center">

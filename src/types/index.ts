@@ -13,6 +13,13 @@ export interface Folder {
   chunkSize: number;
   chunkOverlap: number;
   metadataParams: string[];
+  metadataConfig?: {
+    [key: string]: {
+      type: 'text' | 'number' | 'date' | 'select';
+      options?: string[];
+      required: boolean;
+    };
+  };
   createdAt: string;
   documentCount: number;
 }
@@ -27,6 +34,9 @@ export interface Document {
   fileSize: number;
   vectorCount?: number;
   errorMessage?: string;
+  metadata?: {
+    [key: string]: string;
+  };
 }
 
 export interface User {
@@ -43,10 +53,20 @@ export interface CreateFolderPayload {
   chunkSize: number;
   chunkOverlap: number;
   metadataParams: string[];
+  metadataConfig?: {
+    [key: string]: {
+      type: 'text' | 'number' | 'date' | 'select';
+      options?: string[];
+      required: boolean;
+    };
+  };
 }
 
 export interface UploadDocumentPayload {
   file: File;
   folderId: string;
   projectId: string;
+  metadata?: {
+    [key: string]: string;
+  };
 }
