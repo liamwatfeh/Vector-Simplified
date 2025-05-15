@@ -10,6 +10,9 @@ import {
   ChevronDown,
   ChevronRight,
   Loader2,
+  Settings,
+  HelpCircle,
+  Code,
   Folder as FolderIcon
 } from 'lucide-react';
 
@@ -19,6 +22,7 @@ const Sidebar: React.FC = () => {
   const [projectFolders, setProjectFolders] = useState<Record<string, Folder[]>>({});
   const [loading, setLoading] = useState(true);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
+  const [showImplementation, setShowImplementation] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
@@ -70,8 +74,8 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-slate-200 hidden md:block">
-      <div className="h-full py-4">
+    <aside className="w-64 bg-white border-r border-slate-200 hidden md:flex md:flex-col">
+      <div className="flex-1 overflow-y-auto py-4">
         <nav className="space-y-1 px-3">
           <NavLink 
             to="/dashboard" 
@@ -158,6 +162,89 @@ const Sidebar: React.FC = () => {
           )}
         </nav>
       </div>
+      
+      <div className="border-t border-slate-200 p-4">
+        <NavLink
+          to="/settings"
+          className={({ isActive }) => 
+            `flex items-center space-x-2 px-3 py-2 rounded-md text-sm transition-colors ${
+              isActive 
+                ? 'bg-primary-50 text-primary-700' 
+                : 'text-slate-600 hover:bg-slate-100'
+            }`
+          }
+        >
+          <Settings className="w-4 h-4" />
+          <span>Settings</span>
+        </NavLink>
+        
+        <button
+          onClick={() => setShowImplementation(true)}
+          className="flex items-center space-x-2 w-full px-3 py-2 rounded-md text-sm text-slate-600 hover:bg-slate-100 transition-colors"
+        >
+          <Code className="w-4 h-4" />
+          <span>Implementation Guide</span>
+        </button>
+      </div>
+
+      {showImplementation && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-slate-900">Claude Desktop Implementation</h2>
+                <button
+                  onClick={() => setShowImplementation(false)}
+                  className="p-1 rounded-full hover:bg-slate-100"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+              
+              <div className="prose prose-slate">
+                <p className="text-slate-600 mb-4">
+                  Add the following configuration to your Claude Desktop settings:
+                </p>
+                
+                <div className="bg-slate-900 rounded-lg p-4 mb-4">
+                  <pre className="text-slate-50 overflow-x-auto">
+                    <code>{JSON.stringify({
+                      mcpServers: {
+                        pinecone: {
+                          command: "npx",
+                          args: ["-y", "@pinecone-database/mcp"],
+                          env: {
+                            PINECONE_API_KEY: user?.apiKey || "YOUR_API_KEY"
+                          }
+                        }
+                      }
+                    }, null, 2)}</code>
+                  </pre>
+                  
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify({
+                        mcpServers: {
+                          pinecone: {
+                            command: "npx",
+                            args: ["-y", "@pinecone-database/mcp"],
+                            env: {
+                              PINECONE_API_KEY: user?.apiKey || "YOUR_API_KEY"
+                            }
+                          }
+                        }
+                      }, null, 2));
+                    }}
+                    className="mt-2 px-3 py-1 text-xs bg-slate-700 text-slate-200 rounded hover:bg-slate-600"
+                  >
+                    Copy to Clipboard
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   );
 };

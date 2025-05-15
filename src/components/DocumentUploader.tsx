@@ -40,9 +40,11 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
         
         // Initialize metadata values with empty strings
         const initialValues: MetadataValues = {};
-        folderData.metadataParams.forEach(param => {
-          initialValues[param] = '';
-        });
+        if (folderData.metadataConfig) {
+          Object.keys(folderData.metadataConfig).forEach(key => {
+            initialValues[key] = '';
+          });
+        }
         setMetadataValues(initialValues);
       } catch (error) {
         console.error('Failed to fetch folder:', error);
@@ -82,10 +84,13 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
   });
 
   const handleUpload = async () => {
-    if (!user?.apiKey || !selectedFile || !folder) return;
+    if (!user?.apiKey || !selectedFile || !folder?.metadataConfig) return;
     
     // Validate required metadata fields
-    const missingFields = folder.metadataParams.filter(param => !metadataValues[param]);
+    const missingFields = Object.entries(folder.metadataConfig)
+      .filter(([key, config]) => config.required && !metadataValues[key])
+      .map(([key]) => key);
+
     if (missingFields.length > 0) {
       setError(`Please fill in all required metadata fields: ${missingFields.join(', ')}`);
       return;
@@ -125,10 +130,10 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
     }
   };
 
-  const handleMetadataChange = (param: string, value: string) => {
+  const handleMetadataChange = (key: string, value: string) => {
     setMetadataValues(prev => ({
       ...prev,
-      [param]: value
+      [key]: value
     }));
   };
 
@@ -166,7 +171,7 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
               <input {...getInputProps()} />
               <div className="flex flex-col items-center">
                 <div className="w-16 h-16 rounded-full bg-primary-50 flex items-center justify-center mb-4">
-                  <UploadCloud className="w-8 h-8 text-primary-500" />
+                  <UploadCloud className="w-8 h-8 text-primary-600" />
                 </div>
                 <p className="text-slate-700 font-medium mb-1">
                   {isDragActive ? 'Drop the file here' : 'Drag & drop a PDF file here'}
@@ -216,21 +221,37 @@ const DocumentUploader: React.FC<DocumentUploaderProps> = ({
                 )}
               </div>
               
-              {folder && folder.metadataParams.length > 0 && (
+              {folder?.metadataConfig && Object.keys(folder.metadataConfig).length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-slate-900">Document Metadata</h3>
-                  {folder.metadataParams.map(param => (
-                    <div key={param} className="space-y-2">
+                  {Object.entries(folder.metadataConfig).map(([key, config]) => (
+                    <div key={key} className="space-y-2">
                       <label className="block text-sm font-medium text-slate-700">
-                        {param}
+                        {key}
+                        {config.required && <span className="text-error-500 ml-1">*</span>}
                       </label>
-                      <input
-                        type="text"
-                        value={metadataValues[param] || ''}
-                        onChange={(e) => handleMetadataChange(param, e.target.value)}
-                        className="input w-full"
-                        placeholder={`Enter ${param.toLowerCase()}`}
-                      />
+                      {config.type === 'select' && config.options ? (
+                        <select
+                          value={metadataValues[key] || ''}
+                          onChange={(e) => handleMetadataChange(key, e.target.value)}
+                          className="input w-full"
+                          required={config.required}
+                        >
+                          <option value="">Select {key.toLowerCase()}</option>
+                          {config.options.map(option => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={config.type === 'date' ? 'date' : config.type === 'number' ? 'number' : 'text'}
+                          value={metadataValues[key] || ''}
+                          onChange={(e) => handleMetadataChange(key, e.target.value)}
+                          className="input w-full"
+                          placeholder={`Enter ${key.toLowerCase()}`}
+                          required={config.required}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
