@@ -8,41 +8,20 @@ import {
   UploadDocumentPayload
 } from '../types';
 
-// Create axios instance with auth interceptor
-const createApiClient = (apiKey: string) => {
-  const client = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-  });
-  
-  return client;
-};
+// Mock data storage
+let mockProjects: Project[] = [];
+let mockFolders: Record<string, Folder[]> = {};
+let mockDocuments: Record<string, Document[]> = {};
 
 // Validate API key
 export const validateApiKey = async (apiKey: string): Promise<boolean> => {
-  try {
-    const client = createApiClient(apiKey);
-    await client.get('/auth/validate');
-    return true;
-  } catch (error) {
-    console.error('API key validation error:', error);
-    return false;
-  }
+  // Accept any non-empty string as valid API key for demo
+  return apiKey.length > 0;
 };
 
 // Get all projects
 export const getProjects = async (apiKey: string): Promise<Project[]> => {
-  try {
-    const client = createApiClient(apiKey);
-    const response = await client.get('/projects');
-    return response.data;
-  } catch (error) {
-    console.error('Get projects error:', error);
-    throw error;
-  }
+  return mockProjects;
 };
 
 // Create a new project
@@ -50,14 +29,18 @@ export const createProject = async (
   apiKey: string,
   payload: CreateProjectPayload
 ): Promise<Project> => {
-  try {
-    const client = createApiClient(apiKey);
-    const response = await client.post('/projects', payload);
-    return response.data;
-  } catch (error) {
-    console.error('Create project error:', error);
-    throw error;
-  }
+  const newProject: Project = {
+    id: `project-${Date.now()}`,
+    name: payload.name,
+    createdAt: new Date().toISOString(),
+    folderCount: 0,
+    documentCount: 0
+  };
+  
+  mockProjects.push(newProject);
+  mockFolders[newProject.id] = [];
+  
+  return newProject;
 };
 
 // Get project details
@@ -65,14 +48,9 @@ export const getProject = async (
   apiKey: string,
   projectId: string
 ): Promise<Project> => {
-  try {
-    const client = createApiClient(apiKey);
-    const response = await client.get(`/projects/${projectId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Get project error:', error);
-    throw error;
-  }
+  const project = mockProjects.find(p => p.id === projectId);
+  if (!project) throw new Error('Project not found');
+  return project;
 };
 
 // Get folders in a project
@@ -80,14 +58,7 @@ export const getFolders = async (
   apiKey: string,
   projectId: string
 ): Promise<Folder[]> => {
-  try {
-    const client = createApiClient(apiKey);
-    const response = await client.get(`/projects/${projectId}/folders`);
-    return response.data;
-  } catch (error) {
-    console.error('Get folders error:', error);
-    throw error;
-  }
+  return mockFolders[projectId] || [];
 };
 
 // Create a new folder
@@ -95,14 +66,31 @@ export const createFolder = async (
   apiKey: string,
   payload: CreateFolderPayload
 ): Promise<Folder> => {
-  try {
-    const client = createApiClient(apiKey);
-    const response = await client.post(`/projects/${payload.projectId}/folders`, payload);
-    return response.data;
-  } catch (error) {
-    console.error('Create folder error:', error);
-    throw error;
+  const newFolder: Folder = {
+    id: `folder-${Date.now()}`,
+    name: payload.name,
+    projectId: payload.projectId,
+    chunkSize: payload.chunkSize,
+    chunkOverlap: payload.chunkOverlap,
+    metadataParams: payload.metadataParams,
+    createdAt: new Date().toISOString(),
+    documentCount: 0
+  };
+  
+  if (!mockFolders[payload.projectId]) {
+    mockFolders[payload.projectId] = [];
   }
+  
+  mockFolders[payload.projectId].push(newFolder);
+  mockDocuments[newFolder.id] = [];
+  
+  // Update project folder count
+  const project = mockProjects.find(p => p.id === payload.projectId);
+  if (project) {
+    project.folderCount += 1;
+  }
+  
+  return newFolder;
 };
 
 // Get folder details
@@ -111,14 +99,9 @@ export const getFolder = async (
   projectId: string,
   folderId: string
 ): Promise<Folder> => {
-  try {
-    const client = createApiClient(apiKey);
-    const response = await client.get(`/projects/${projectId}/folders/${folderId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Get folder error:', error);
-    throw error;
-  }
+  const folder = mockFolders[projectId]?.find(f => f.id === folderId);
+  if (!folder) throw new Error('Folder not found');
+  return folder;
 };
 
 // Get documents in a folder
@@ -127,14 +110,7 @@ export const getDocuments = async (
   projectId: string,
   folderId: string
 ): Promise<Document[]> => {
-  try {
-    const client = createApiClient(apiKey);
-    const response = await client.get(`/projects/${projectId}/folders/${folderId}/documents`);
-    return response.data;
-  } catch (error) {
-    console.error('Get documents error:', error);
-    throw error;
-  }
+  return mockDocuments[folderId] || [];
 };
 
 // Upload document
@@ -142,26 +118,43 @@ export const uploadDocument = async (
   apiKey: string,
   payload: UploadDocumentPayload
 ): Promise<Document> => {
-  try {
-    const client = createApiClient(apiKey);
-    const formData = new FormData();
-    formData.append('file', payload.file);
-    
-    const response = await client.post(
-      `/projects/${payload.projectId}/folders/${payload.folderId}/documents`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-    
-    return response.data;
-  } catch (error) {
-    console.error('Upload document error:', error);
-    throw error;
+  const newDocument: Document = {
+    id: `doc-${Date.now()}`,
+    name: payload.file.name,
+    folderId: payload.folderId,
+    projectId: payload.projectId,
+    status: 'processing',
+    createdAt: new Date().toISOString(),
+    fileSize: payload.file.size
+  };
+  
+  if (!mockDocuments[payload.folderId]) {
+    mockDocuments[payload.folderId] = [];
   }
+  
+  mockDocuments[payload.folderId].push(newDocument);
+  
+  // Update folder and project document counts
+  const folder = mockFolders[payload.projectId]?.find(f => f.id === payload.folderId);
+  if (folder) {
+    folder.documentCount += 1;
+  }
+  
+  const project = mockProjects.find(p => p.id === payload.projectId);
+  if (project) {
+    project.documentCount += 1;
+  }
+  
+  // Simulate processing completion after 2 seconds
+  setTimeout(() => {
+    const doc = mockDocuments[payload.folderId].find(d => d.id === newDocument.id);
+    if (doc) {
+      doc.status = 'completed';
+      doc.vectorCount = Math.floor(Math.random() * 50) + 10;
+    }
+  }, 2000);
+  
+  return newDocument;
 };
 
 // Delete document
@@ -171,11 +164,22 @@ export const deleteDocument = async (
   folderId: string,
   documentId: string
 ): Promise<void> => {
-  try {
-    const client = createApiClient(apiKey);
-    await client.delete(`/projects/${projectId}/folders/${folderId}/documents/${documentId}`);
-  } catch (error) {
-    console.error('Delete document error:', error);
-    throw error;
+  const documents = mockDocuments[folderId];
+  if (!documents) return;
+  
+  const index = documents.findIndex(d => d.id === documentId);
+  if (index === -1) return;
+  
+  documents.splice(index, 1);
+  
+  // Update folder and project document counts
+  const folder = mockFolders[projectId]?.find(f => f.id === folderId);
+  if (folder) {
+    folder.documentCount -= 1;
+  }
+  
+  const project = mockProjects.find(p => p.id === projectId);
+  if (project) {
+    project.documentCount -= 1;
   }
 };
