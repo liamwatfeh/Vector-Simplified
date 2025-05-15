@@ -13,6 +13,7 @@ import {
   Settings,
   HelpCircle,
   Code,
+  X,
   Folder as FolderIcon
 } from 'lucide-react';
 
