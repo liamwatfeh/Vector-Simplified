@@ -19,7 +19,9 @@ import {
   Plus,
   Settings,
   AlertTriangle,
-  Minus
+  Minus,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import DocumentUploader from '../components/DocumentUploader';
 
