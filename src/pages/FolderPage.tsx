@@ -18,9 +18,17 @@ import {
   X,
   Plus,
   Settings,
-  AlertTriangle
+  AlertTriangle,
+  Minus
 } from 'lucide-react';
 import DocumentUploader from '../components/DocumentUploader';
+
+interface MetadataField {
+  key: string;
+  type: 'text' | 'number' | 'date' | 'select';
+  options: string[];
+  required: boolean;
+}
 
 const FolderPage: React.FC = () => {
   const { projectId, folderId } = useParams<{ projectId: string, folderId: string }>();
@@ -128,21 +136,117 @@ const FolderPage: React.FC = () => {
 
   // Folder Settings Component
   const FolderSettings = () => {
-    const [newChunkSize, setNewChunkSize] = useState(folder?.chunkSize || 1000);
-    const [newChunkOverlap, setNewChunkOverlap] = useState(folder?.chunkOverlap || 200);
-    const [metadataConfig, setMetadataConfig] = useState(folder?.metadataConfig || {});
+    const [chunkSize, setChunkSize] = useState(folder?.chunkSize || 1000);
+    const [chunkOverlap, setChunkOverlap] = useState(folder?.chunkOverlap || 200);
+    const [metadataFields, setMetadataFields] = useState<MetadataField[]>([]);
+    const [expandedFields, setExpandedFields] = useState<Record<number, boolean>>({});
     const [saving, setSaving] = useState(false);
     
+    useEffect(() => {
+      if (folder?.metadataConfig) {
+        const fields = Object.entries(folder.metadataConfig).map(([key, config]) => ({
+          key,
+          type: config.type,
+          options: config.options || [],
+          required: config.required
+        }));
+        setMetadataFields(fields);
+        
+        // Set all fields as expanded initially
+        const expanded: Record<number, boolean> = {};
+        fields.forEach((_, index) => {
+          expanded[index] = true;
+        });
+        setExpandedFields(expanded);
+      }
+    }, [folder]);
+
+    const adjustChunkSize = (amount: number) => {
+      setChunkSize(prev => Math.max(100, Math.min(5000, prev + amount)));
+    };
+
+    const adjustChunkOverlap = (amount: number) => {
+      setChunkOverlap(prev => Math.max(0, Math.min(chunkSize / 2, prev + amount)));
+    };
+
+    const addMetadataField = () => {
+      setMetadataFields(prev => [...prev, {
+        key: '',
+        type: 'select',
+        options: [],
+        required: true
+      }]);
+      setExpandedFields(prev => ({
+        ...prev,
+        [metadataFields.length]: true
+      }));
+    };
+
+    const removeMetadataField = (index: number) => {
+      setMetadataFields(prev => prev.filter((_, i) => i !== index));
+      setExpandedFields(prev => {
+        const newExpanded = { ...prev };
+        delete newExpanded[index];
+        return newExpanded;
+      });
+    };
+
+    const updateMetadataField = (index: number, field: Partial<MetadataField>) => {
+      setMetadataFields(prev => {
+        const newFields = [...prev];
+        newFields[index] = { ...newFields[index], ...field };
+        return newFields;
+      });
+    };
+
+    const addOption = (fieldIndex: number) => {
+      const field = metadataFields[fieldIndex];
+      updateMetadataField(fieldIndex, {
+        options: [...field.options, '']
+      });
+    };
+
+    const updateOption = (fieldIndex: number, optionIndex: number, value: string) => {
+      const field = metadataFields[fieldIndex];
+      const newOptions = [...field.options];
+      newOptions[optionIndex] = value;
+      updateMetadataField(fieldIndex, { options: newOptions });
+    };
+
+    const removeOption = (fieldIndex: number, optionIndex: number) => {
+      const field = metadataFields[fieldIndex];
+      const newOptions = field.options.filter((_, i) => i !== optionIndex);
+      updateMetadataField(fieldIndex, { options: newOptions });
+    };
+
+    const toggleFieldExpanded = (index: number) => {
+      setExpandedFields(prev => ({
+        ...prev,
+        [index]: !prev[index]
+      }));
+    };
+
     const handleSave = async () => {
       if (!user?.apiKey || !folder) return;
+      
+      // Validate that all select fields have at least one option
+      const invalidField = metadataFields.find(field => 
+        field.type === 'select' && field.options.length === 0
+      );
+
+      if (invalidField) {
+        alert(`Field "${invalidField.key}" must have at least one option.`);
+        return;
+      }
+      
       setSaving(true);
       
       try {
         // Update folder settings logic would go here
-        // For now, just close the modal
         setShowSettings(false);
       } catch (error) {
         console.error('Failed to update folder settings:', error);
+        alert('Failed to update folder settings. Please try again.');
       } finally {
         setSaving(false);
       }
@@ -150,9 +254,9 @@ const FolderPage: React.FC = () => {
     
     return (
       <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full">
+        <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-slate-900">Folder Settings</h2>
               <button
                 onClick={() => setShowSettings(false)}
@@ -163,7 +267,7 @@ const FolderPage: React.FC = () => {
             </div>
             
             <div className="space-y-6">
-              <div className="bg-error-50 border border-error-200 rounded-lg p-4 mb-6">
+              <div className="bg-error-50 border border-error-200 rounded-lg p-4">
                 <div className="flex items-start">
                   <AlertTriangle className="w-5 h-5 text-error-500 mt-0.5 mr-3" />
                   <div>
@@ -183,14 +287,30 @@ const FolderPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700">
                     Chunk Size (characters)
                   </label>
-                  <input
-                    type="number"
-                    value={newChunkSize}
-                    onChange={(e) => setNewChunkSize(parseInt(e.target.value))}
-                    min={100}
-                    max={5000}
-                    className="input w-full"
-                  />
+                  <div className="flex items-center">
+                    <button 
+                      type="button"
+                      className="bg-slate-100 p-1.5 rounded-l-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
+                      onClick={() => adjustChunkSize(-100)}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      value={chunkSize}
+                      onChange={(e) => setChunkSize(parseInt(e.target.value))}
+                      className="input rounded-none text-center border-x-0"
+                      min={100}
+                      max={5000}
+                    />
+                    <button 
+                      type="button"
+                      className="bg-slate-100 p-1.5 rounded-r-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
+                      onClick={() => adjustChunkSize(100)}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                   <p className="text-xs text-slate-500">
                     Determines how text is split for processing. Smaller chunks are more specific, larger chunks provide more context.
                   </p>
@@ -200,101 +320,152 @@ const FolderPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700">
                     Chunk Overlap (characters)
                   </label>
-                  <input
-                    type="number"
-                    value={newChunkOverlap}
-                    onChange={(e) => setNewChunkOverlap(parseInt(e.target.value))}
-                    min={0}
-                    max={newChunkSize / 2}
-                    className="input w-full"
-                  />
+                  <div className="flex items-center">
+                    <button 
+                      type="button"
+                      className="bg-slate-100 p-1.5 rounded-l-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
+                      onClick={() => adjustChunkOverlap(-25)}
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <input
+                      type="number"
+                      value={chunkOverlap}
+                      onChange={(e) => setChunkOverlap(parseInt(e.target.value))}
+                      className="input rounded-none text-center border-x-0"
+                      min={0}
+                      max={chunkSize / 2}
+                    />
+                    <button 
+                      type="button"
+                      className="bg-slate-100 p-1.5 rounded-r-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
+                      onClick={() => adjustChunkOverlap(25)}
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
                   <p className="text-xs text-slate-500">
                     The number of characters that overlap between chunks to maintain context across chunk boundaries.
                   </p>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-slate-900">Metadata Configuration</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-slate-700">
+                    Metadata Fields
+                  </label>
+                  <button
+                    type="button"
+                    onClick={addMetadataField}
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Field
+                  </button>
+                </div>
                 
-                {Object.entries(metadataConfig).map(([key, config]) => (
-                  <div key={key} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-sm font-medium text-slate-700">
-                        {key}
-                      </label>
-                      <button
-                        className="text-error-600 hover:text-error-700 text-sm font-medium"
-                        onClick={() => {
-                          const newConfig = { ...metadataConfig };
-                          delete newConfig[key];
-                          setMetadataConfig(newConfig);
-                        }}
-                      >
-                        Remove
-                      </button>
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-2">
+                  <div className="flex items-start space-x-2">
+                    <Info className="w-4 h-4 text-slate-500 mt-0.5" />
+                    <div className="space-y-2 text-sm text-slate-600">
+                      <p>
+                        Metadata fields help you organize and filter your documents. Define fields and their allowed values to ensure consistency when uploading documents.
+                      </p>
+                      <p>
+                        For example, create a "Category" field with options like "Sales", "Marketing", and "Product" to categorize your documents.
+                      </p>
                     </div>
-                    
-                    {config.type === 'select' && (
-                      <div className="space-y-2">
-                        {config.options?.map((option, index) => (
-                          <div key={index} className="flex items-center space-x-2">
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {metadataFields.map((field, fieldIndex) => (
+                    <div 
+                      key={fieldIndex} 
+                      className="bg-white border border-slate-200 rounded-lg overflow-hidden"
+                    >
+                      <div className="p-3 bg-slate-50 border-b border-slate-200">
+                        <div className="flex items-center space-x-2">
+                          <div className="flex-1">
                             <input
                               type="text"
-                              value={option}
-                              onChange={(e) => {
-                                const newConfig = { ...metadataConfig };
-                                newConfig[key].options![index] = e.target.value;
-                                setMetadataConfig(newConfig);
-                              }}
-                              className="input flex-1"
+                              value={field.key}
+                              onChange={(e) => updateMetadataField(fieldIndex, { key: e.target.value })}
+                              placeholder="Field name (e.g., category)"
+                              className="input w-full text-sm"
                             />
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <label className="flex items-center space-x-1.5">
+                              <input
+                                type="checkbox"
+                                checked={field.required}
+                                onChange={(e) => updateMetadataField(fieldIndex, { required: e.target.checked })}
+                                className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                              />
+                              <span className="text-sm text-slate-600">Required</span>
+                            </label>
                             <button
-                              className="p-1.5 rounded-full hover:bg-error-50 text-slate-500 hover:text-error-600"
-                              onClick={() => {
-                                const newConfig = { ...metadataConfig };
-                                newConfig[key].options = config.options?.filter((_, i) => i !== index);
-                                setMetadataConfig(newConfig);
-                              }}
+                              type="button"
+                              onClick={() => toggleFieldExpanded(fieldIndex)}
+                              className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500"
                             >
-                              <X className="w-4 h-4" />
+                              {expandedFields[fieldIndex] ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </button>
+                            {metadataFields.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeMetadataField(fieldIndex)}
+                                className="p-1.5 rounded-md hover:bg-error-50 text-slate-500 hover:text-error-600"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {expandedFields[fieldIndex] && (
+                        <div className="p-3 space-y-3">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700">Options</label>
+                            {field.options.map((option, optionIndex) => (
+                              <div key={optionIndex} className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={option}
+                                  onChange={(e) => updateOption(fieldIndex, optionIndex, e.target.value)}
+                                  placeholder="Enter an option"
+                                  className="input flex-1 text-sm"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeOption(fieldIndex, optionIndex)}
+                                  className="p-1.5 rounded-md hover:bg-error-50 text-slate-500 hover:text-error-600"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => addOption(fieldIndex)}
+                              className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Add Option
                             </button>
                           </div>
-                        ))}
-                        <button
-                          className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                          onClick={() => {
-                            const newConfig = { ...metadataConfig };
-                            newConfig[key].options = [...(config.options || []), ''];
-                            setMetadataConfig(newConfig);
-                          }}
-                        >
-                          Add Option
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                
-                <button
-                  className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
-                  onClick={() => {
-                    const key = prompt('Enter field name:');
-                    if (key && !metadataConfig[key]) {
-                      setMetadataConfig({
-                        ...metadataConfig,
-                        [key]: {
-                          type: 'select',
-                          options: [],
-                          required: true
-                        }
-                      });
-                    }
-                  }}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Metadata Field
-                </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
             
@@ -302,6 +473,7 @@ const FolderPage: React.FC = () => {
               <button
                 onClick={() => setShowSettings(false)}
                 className="btn btn-outline"
+                disabled={saving}
               >
                 Cancel
               </button>
