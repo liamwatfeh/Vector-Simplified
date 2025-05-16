@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { X, Loader2, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { createFolder } from '../services/pineconeService';
 import { useAuth } from '../contexts/AuthContext';
+import { useFolders } from '../contexts/FoldersContext';
 import { Folder } from '../types';
 
 interface CreateFolderModalProps {
@@ -31,6 +32,7 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
   onFolderCreated 
 }) => {
   const { user } = useAuth();
+  const { refreshFolders } = useFolders();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metadataFields, setMetadataFields] = useState<MetadataField[]>([]);
@@ -53,16 +55,6 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
 
   const chunkSize = watch('chunkSize');
   const chunkOverlap = watch('chunkOverlap');
-
-  const adjustChunkSize = (amount: number) => {
-    const newValue = Math.max(100, Math.min(5000, chunkSize + amount));
-    setValue('chunkSize', newValue);
-  };
-
-  const adjustChunkOverlap = (amount: number) => {
-    const newValue = Math.max(0, Math.min(chunkSize / 2, chunkOverlap + amount));
-    setValue('chunkOverlap', newValue);
-  };
 
   const addMetadataField = () => {
     setMetadataFields([...metadataFields, { 
@@ -153,6 +145,9 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
         metadataParams: metadataFields.map(field => field.key),
         metadataConfig
       });
+
+      // Refresh the folders in the sidebar
+      await refreshFolders(projectId);
       
       onFolderCreated(newFolder);
     } catch (error) {
