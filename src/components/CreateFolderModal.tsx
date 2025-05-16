@@ -33,12 +33,8 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
   const { user } = useAuth();
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [metadataFields, setMetadataFields] = useState<MetadataField[]>([
-    { key: 'category', type: 'select', options: [], required: true }
-  ]);
-  const [expandedFields, setExpandedFields] = useState<Record<number, boolean>>({
-    0: true
-  });
+  const [metadataFields, setMetadataFields] = useState<MetadataField[]>([]);
+  const [expandedFields, setExpandedFields] = useState<Record<number, boolean>>({});
   
   const { 
     register, 
@@ -304,9 +300,6 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
                       <p>
                         Metadata fields help you organize and filter your documents. Define fields and their allowed values to ensure consistency when uploading documents.
                       </p>
-                      <p>
-                        For example, create a "Category" field with options like "Sales", "Marketing", and "Product" to categorize your documents.
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -324,7 +317,7 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
                               type="text"
                               value={field.key}
                               onChange={(e) => updateMetadataField(fieldIndex, { key: e.target.value })}
-                              placeholder="Field name (e.g., category)"
+                              placeholder="Field name"
                               className="input w-full text-sm"
                             />
                           </div>
