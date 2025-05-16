@@ -67,6 +67,20 @@ const FolderPage: React.FC = () => {
     fetchData();
   }, [user, projectId, folderId]);
 
+  const handleChunkSizeChange = (value: number) => {
+    const newValue = Math.max(100, Math.min(5000, value));
+    setChunkSize(newValue);
+    
+    // Keep the same ratio for overlap when chunk size changes
+    const ratio = chunkOverlap / chunkSize;
+    const newOverlap = Math.floor(newValue * ratio);
+    setChunkOverlap(Math.min(newOverlap, Math.floor(newValue / 2)));
+  };
+
+  const handleChunkOverlapChange = (value: number) => {
+    setChunkOverlap(Math.max(0, Math.min(Math.floor(chunkSize / 2), value)));
+  };
+
   const FolderSettings = () => {
     const [chunkSize, setChunkSize] = useState(folder?.chunkSize || 1000);
     const [chunkOverlap, setChunkOverlap] = useState(folder?.chunkOverlap || 200);

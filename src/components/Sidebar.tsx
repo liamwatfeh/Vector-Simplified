@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getProjects, getFolders } from '../services/pineconeService';
-import { Project, Folder } from '../types';
+import { useFolders } from '../contexts/FoldersContext';
+import { getProjects } from '../services/pineconeService';
+import { Project } from '../types';
 import { 
   LayoutDashboard, 
   Files, 
@@ -19,8 +20,8 @@ import {
 
 const Sidebar: React.FC = () => {
   const { user } = useAuth();
+  const { folders, refreshFolders } = useFolders();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectFolders, setProjectFolders] = useState<Record<string, Folder[]>>({});
   const [loading, setLoading] = useState(true);
   const [expandedProjects, setExpandedProjects] = useState<Record<string, boolean>>({});
   const [showImplementation, setShowImplementation] = useState(false);
@@ -34,14 +35,11 @@ const Sidebar: React.FC = () => {
           setProjects(data);
           
           // Fetch folders for each project
-          const foldersData: Record<string, Folder[]> = {};
           await Promise.all(
             data.map(async (project) => {
-              const folders = await getFolders(user.apiKey!, project.id);
-              foldersData[project.id] = folders;
+              await refreshFolders(project.id);
             })
           );
-          setProjectFolders(foldersData);
         } catch (error) {
           console.error('Failed to fetch projects:', error);
         } finally {
@@ -130,9 +128,9 @@ const Sidebar: React.FC = () => {
                     )}
                   </div>
                   
-                  {expandedProjects[project.id] && projectFolders[project.id] && (
+                  {expandedProjects[project.id] && folders[project.id] && (
                     <div className="pl-9 space-y-1">
-                      {projectFolders[project.id].map(folder => (
+                      {folders[project.id].map(folder => (
                         <NavLink
                           key={folder.id}
                           to={`/projects/${project.id}/folders/${folder.id}`}
