@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, Loader2, Plus, Minus, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Loader2, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import { createFolder } from '../services/pineconeService';
 import { useAuth } from '../contexts/AuthContext';
 import { Folder } from '../types';
@@ -214,30 +214,25 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
                 <label className="block text-sm font-medium text-slate-700">
                   Chunk Size (characters)
                 </label>
-                <div className="flex items-center">
-                  <button 
-                    type="button"
-                    className="bg-slate-100 p-1.5 rounded-l-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
-                    onClick={() => adjustChunkSize(-100)}
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="range"
+                    min="100"
+                    max="5000"
+                    step="100"
+                    value={chunkSize}
+                    onChange={(e) => setValue('chunkSize', parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                  />
                   <input
                     type="number"
-                    className="input rounded-none text-center border-x-0"
-                    {...register('chunkSize', { 
-                      required: true,
-                      min: 100,
-                      max: 5000
-                    })}
+                    className="w-24 input text-center"
+                    value={chunkSize}
+                    onChange={(e) => setValue('chunkSize', parseInt(e.target.value))}
+                    min="100"
+                    max="5000"
+                    step="100"
                   />
-                  <button 
-                    type="button"
-                    className="bg-slate-100 p-1.5 rounded-r-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
-                    onClick={() => adjustChunkSize(100)}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
                 </div>
                 <p className="text-xs text-slate-500">
                   Determines how text is split for processing. Smaller chunks are more specific, larger chunks provide more context.
@@ -248,30 +243,25 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
                 <label className="block text-sm font-medium text-slate-700">
                   Chunk Overlap (characters)
                 </label>
-                <div className="flex items-center">
-                  <button 
-                    type="button"
-                    className="bg-slate-100 p-1.5 rounded-l-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
-                    onClick={() => adjustChunkOverlap(-25)}
-                  >
-                    <Minus className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max={Math.floor(chunkSize / 2)}
+                    step="25"
+                    value={chunkOverlap}
+                    onChange={(e) => setValue('chunkOverlap', parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                  />
                   <input
                     type="number"
-                    className="input rounded-none text-center border-x-0"
-                    {...register('chunkOverlap', { 
-                      required: true,
-                      min: 0,
-                      max: () => chunkSize / 2
-                    })}
+                    className="w-24 input text-center"
+                    value={chunkOverlap}
+                    onChange={(e) => setValue('chunkOverlap', parseInt(e.target.value))}
+                    min="0"
+                    max={Math.floor(chunkSize / 2)}
+                    step="25"
                   />
-                  <button 
-                    type="button"
-                    className="bg-slate-100 p-1.5 rounded-r-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
-                    onClick={() => adjustChunkOverlap(25)}
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
                 </div>
                 <p className="text-xs text-slate-500">
                   The number of characters that overlap between chunks to maintain context across chunk boundaries.
@@ -286,9 +276,8 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
                   <button
                     type="button"
                     onClick={addMetadataField}
-                    className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                   >
-                    <Plus className="w-4 h-4 mr-1" />
                     Add Field
                   </button>
                 </div>
@@ -380,9 +369,8 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
                             <button
                               type="button"
                               onClick={() => addOption(fieldIndex)}
-                              className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                             >
-                              <Plus className="w-4 h-4 mr-1" />
                               Add Option
                             </button>
                           </div>
