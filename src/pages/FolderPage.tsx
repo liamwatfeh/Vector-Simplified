@@ -17,8 +17,6 @@ import {
   Info,
   Settings,
   X,
-  Plus,
-  Minus,
   ChevronDown,
   ChevronUp,
   AlertTriangle
@@ -96,12 +94,17 @@ const FolderPage: React.FC = () => {
       }
     }, [folder]);
 
-    const adjustChunkSize = (amount: number) => {
-      setChunkSize(prev => Math.max(100, Math.min(5000, prev + amount)));
+    const handleChunkSizeChange = (value: number) => {
+      const newValue = Math.max(100, Math.min(5000, value));
+      setChunkSize(newValue);
+      // Update chunk overlap if it exceeds the new max
+      if (chunkOverlap > newValue / 2) {
+        setChunkOverlap(Math.floor(newValue / 2));
+      }
     };
 
-    const adjustChunkOverlap = (amount: number) => {
-      setChunkOverlap(prev => Math.max(0, Math.min(chunkSize / 2, prev + amount)));
+    const handleChunkOverlapChange = (value: number) => {
+      setChunkOverlap(Math.max(0, Math.min(Math.floor(chunkSize / 2), value)));
     };
 
     const addMetadataField = () => {
@@ -223,29 +226,25 @@ const FolderPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700">
                     Chunk Size (characters)
                   </label>
-                  <div className="flex items-center">
-                    <button 
-                      type="button"
-                      className="bg-slate-100 p-1.5 rounded-l-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
-                      onClick={() => adjustChunkSize(-100)}
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="range"
+                      min="100"
+                      max="5000"
+                      step="100"
+                      value={chunkSize}
+                      onChange={(e) => handleChunkSizeChange(parseInt(e.target.value))}
+                      className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                    />
                     <input
                       type="number"
                       value={chunkSize}
-                      onChange={(e) => setChunkSize(parseInt(e.target.value))}
-                      className="input rounded-none text-center border-x-0"
-                      min={100}
-                      max={5000}
+                      onChange={(e) => handleChunkSizeChange(parseInt(e.target.value))}
+                      className="w-24 input text-center"
+                      min="100"
+                      max="5000"
+                      step="100"
                     />
-                    <button 
-                      type="button"
-                      className="bg-slate-100 p-1.5 rounded-r-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
-                      onClick={() => adjustChunkSize(100)}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
                   </div>
                   <p className="text-xs text-slate-500">
                     Determines how text is split for processing. Smaller chunks are more specific, larger chunks provide more context.
@@ -256,29 +255,25 @@ const FolderPage: React.FC = () => {
                   <label className="block text-sm font-medium text-slate-700">
                     Chunk Overlap (characters)
                   </label>
-                  <div className="flex items-center">
-                    <button 
-                      type="button"
-                      className="bg-slate-100 p-1.5 rounded-l-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
-                      onClick={() => adjustChunkOverlap(-25)}
-                    >
-                      <Minus className="w-4 h-4" />
-                    </button>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max={Math.floor(chunkSize / 2)}
+                      step="25"
+                      value={chunkOverlap}
+                      onChange={(e) => handleChunkOverlapChange(parseInt(e.target.value))}
+                      className="flex-1 h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary-600"
+                    />
                     <input
                       type="number"
                       value={chunkOverlap}
-                      onChange={(e) => setChunkOverlap(parseInt(e.target.value))}
-                      className="input rounded-none text-center border-x-0"
-                      min={0}
-                      max={chunkSize / 2}
+                      onChange={(e) => handleChunkOverlapChange(parseInt(e.target.value))}
+                      className="w-24 input text-center"
+                      min="0"
+                      max={Math.floor(chunkSize / 2)}
+                      step="25"
                     />
-                    <button 
-                      type="button"
-                      className="bg-slate-100 p-1.5 rounded-r-md border border-slate-300 text-slate-600 hover:bg-slate-200 transition-colors"
-                      onClick={() => adjustChunkOverlap(25)}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
                   </div>
                   <p className="text-xs text-slate-500">
                     The number of characters that overlap between chunks to maintain context across chunk boundaries.
@@ -292,9 +287,8 @@ const FolderPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={addMetadataField}
-                    className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                    className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                   >
-                    <Plus className="w-4 h-4 mr-1" />
                     Add Field
                   </button>
                 </div>
@@ -305,9 +299,6 @@ const FolderPage: React.FC = () => {
                     <div className="space-y-2 text-sm text-slate-600">
                       <p>
                         Metadata fields help you organize and filter your documents. Define fields and their allowed values to ensure consistency when uploading documents.
-                      </p>
-                      <p>
-                        For example, create a "Category" field with options like "Sales", "Marketing", and "Product" to categorize your documents.
                       </p>
                     </div>
                   </div>
@@ -326,7 +317,7 @@ const FolderPage: React.FC = () => {
                               type="text"
                               value={field.key}
                               onChange={(e) => updateMetadataField(fieldIndex, { key: e.target.value })}
-                              placeholder="Field name (e.g., category)"
+                              placeholder="Field name"
                               className="input w-full text-sm"
                             />
                           </div>
@@ -389,9 +380,8 @@ const FolderPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => addOption(fieldIndex)}
-                              className="text-sm text-primary-600 hover:text-primary-700 font-medium flex items-center"
+                              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
                             >
-                              <Plus className="w-4 h-4 mr-1" />
                               Add Option
                             </button>
                           </div>
